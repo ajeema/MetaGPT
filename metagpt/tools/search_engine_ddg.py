@@ -5,9 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from concurrent import futures
-from typing import Literal, Optional, overload
-
-from pydantic import BaseModel, ConfigDict
+from typing import Literal, overload
 
 try:
     from duckduckgo_search import DDGS
@@ -17,17 +15,27 @@ except ImportError:
         "You can install it by running the command: `pip install -e.[search-ddg]`"
     )
 
+from metagpt.config import CONFIG
 
-class DDGAPIWrapper(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    loop: Optional[asyncio.AbstractEventLoop] = None
-    executor: Optional[futures.Executor] = None
-    proxy: Optional[str] = None
+class DDGAPIWrapper:
+    """Wrapper around duckduckgo_search API.
 
-    @property
-    def ddgs(self):
-        return DDGS(proxies=self.proxy)
+    To use this module, you should have the `duckduckgo_search` Python package installed.
+    """
+
+    def __init__(
+        self,
+        *,
+        loop: asyncio.AbstractEventLoop | None = None,
+        executor: futures.Executor | None = None,
+    ):
+        kwargs = {}
+        if CONFIG.global_proxy:
+            kwargs["proxies"] = CONFIG.global_proxy
+        self.loop = loop
+        self.executor = executor
+        self.ddgs = DDGS(**kwargs)
 
     @overload
     def run(

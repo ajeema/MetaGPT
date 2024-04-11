@@ -10,10 +10,9 @@ import chromadb
 
 class ChromaStore:
     """If inherited from BaseStore, or importing other modules from metagpt, a Python exception occurs, which is strange."""
-
-    def __init__(self, name: str, get_or_create: bool = False):
+    def __init__(self, name):
         client = chromadb.Client()
-        collection = client.create_collection(name, get_or_create=get_or_create)
+        collection = client.create_collection(name)
         self.client = client
         self.collection = collection
 
@@ -23,7 +22,7 @@ class ChromaStore:
             query_texts=[query],
             n_results=n_results,
             where=metadata_filter,  # optional filter
-            where_document=document_filter,  # optional filter
+            where_document=document_filter  # optional filter
         )
         return results
 
