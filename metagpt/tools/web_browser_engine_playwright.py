@@ -1,21 +1,19 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 from __future__ import annotations
 
 import asyncio
 import sys
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 from playwright.async_api import async_playwright
-from pydantic import BaseModel, Field, PrivateAttr
 
+from metagpt.config import CONFIG
 from metagpt.logs import logger
 from metagpt.utils.parse_html import WebPage
 
 
-class PlaywrightWrapper(BaseModel):
+class PlaywrightWrapper:
     """Wrapper around Playwright.
 
     To use this module, you should have the `playwright` Python package installed and ensure that
@@ -24,23 +22,26 @@ class PlaywrightWrapper(BaseModel):
     command `playwright install` for the first time.
     """
 
-    browser_type: Literal["chromium", "firefox", "webkit"] = "chromium"
-    launch_kwargs: dict = Field(default_factory=dict)
-    proxy: Optional[str] = None
-    context_kwargs: dict = Field(default_factory=dict)
-    _has_run_precheck: bool = PrivateAttr(False)
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-        launch_kwargs = self.launch_kwargs
-        if self.proxy and "proxy" not in launch_kwargs:
+    def __init__(
+        self,
+        browser_type: Literal["chromium", "firefox", "webkit"] | None = None,
+        launch_kwargs: dict | None = None,
+        **kwargs,
+    ) -> None:
+        if browser_type is None:
+            browser_type = CONFIG.playwright_browser_type
+        self.browser_type = browser_type
+        launch_kwargs = launch_kwargs or {}
+        if CONFIG.global_proxy and "proxy" not in launch_kwargs:
             args = launch_kwargs.get("args", [])
             if not any(str.startswith(i, "--proxy-server=") for i in args):
-                launch_kwargs["proxy"] = {"server": self.proxy}
-
+                launch_kwargs["proxy"] = {"server": CONFIG.global_proxy}
+        self.launch_kwargs = launch_kwargs
+        context_kwargs = {}
         if "ignore_https_errors" in kwargs:
-            self.context_kwargs["ignore_https_errors"] = kwargs["ignore_https_errors"]
+            context_kwargs["ignore_https_errors"] = kwargs["ignore_https_errors"]
+        self._context_kwargs = context_kwargs
+        self._has_run_precheck = False
 
     async def run(self, url: str, *urls: str) -> WebPage | list[WebPage]:
         async with async_playwright() as ap:
@@ -54,7 +55,7 @@ class PlaywrightWrapper(BaseModel):
             return await _scrape(browser, url)
 
     async def _scrape(self, browser, url):
-        context = await browser.new_context(**self.context_kwargs)
+        context = await browser.new_context(**self._context_kwargs)
         page = await context.new_page()
         async with page:
             try:
@@ -74,8 +75,8 @@ class PlaywrightWrapper(BaseModel):
         executable_path = Path(browser_type.executable_path)
         if not executable_path.exists() and "executable_path" not in self.launch_kwargs:
             kwargs = {}
-            if self.proxy:
-                kwargs["env"] = {"ALL_PROXY": self.proxy}
+            if CONFIG.global_proxy:
+                kwargs["env"] = {"ALL_PROXY": CONFIG.global_proxy}
             await _install_browsers(self.browser_type, **kwargs)
 
             if self._has_run_precheck:
@@ -137,3 +138,12 @@ async def _log_stream(sr, log_func):
 
 _install_lock: asyncio.Lock = None
 _install_cache = set()
+
+
+if __name__ == "__main__":
+    import fire
+
+    async def main(url: str, *urls: str, browser_type: str = "chromium", **kwargs):
+        return await PlaywrightWrapper(browser_type, **kwargs).run(url, *urls)
+
+    fire.Fire(main)

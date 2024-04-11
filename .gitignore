@@ -1,7 +1,7 @@
 ### Python template
 
 # Byte-compiled / optimized / DLL files
-__pycache__
+__pycache__/
 *.py[cod]
 *$py.class
 
@@ -27,8 +27,6 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-metagpt/tools/schemas/
-examples/data/search_kb/*.json
 
 # PyInstaller
 #  Usually these files are written by a python scripts from a template
@@ -54,7 +52,6 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
-unittest.txt
 
 # Translations
 *.mo
@@ -62,7 +59,6 @@ unittest.txt
 
 # Django stuff:
 *.log
-logs
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
@@ -147,44 +143,24 @@ cython_debug/
 allure-report
 allure-results
 
-# idea / vscode / macos
+# idea
 .idea
 .DS_Store
 .vscode
 
+
+*.txt
+docs/scripts/set_env.sh
 key.yaml
-/data/
+output.json
+data
+data/output_add.json
 data.ms
 examples/nb/
-examples/default__vector_store.json
-examples/docstore.json
-examples/graph_store.json
-examples/image__vector_store.json
-examples/index_store.json
 .chroma
 *~$*
 workspace/*
+*.mmd
 tmp
+output.wav
 metagpt/roles/idea_agent.py
-.aider*
-*.bak
-*.bk
-
-# output folder
-output
-tmp.png
-.dependencies.json
-tests/metagpt/utils/file_repo_git
-tests/data/rsp_cache_new.json
-*.tmp
-*.png
-htmlcov
-htmlcov.*
-cov.xml
-*.dot
-*.pkl
-*.faiss
-*-structure.csv
-*-structure.json
-*.dot
-.python-version

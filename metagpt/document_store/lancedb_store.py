@@ -5,15 +5,13 @@
 @Author  : unkn-wn (Leon Yee)
 @File    : lancedb_store.py
 """
-import os
-import shutil
-
 import lancedb
+import shutil, os
 
 
 class LanceStore:
     def __init__(self, name):
-        db = lancedb.connect("./data/lancedb")
+        db = lancedb.connect('./data/lancedb')
         self.db = db
         self.name = name
         self.table = None
@@ -25,18 +23,16 @@ class LanceStore:
         # .where - SQL syntax filtering for metadata (e.g. where("price > 100"))
         # .metric - specifies the distance metric to use
         # .nprobes - values will yield better recall (more likely to find vectors if they exist) at the expense of latency.
-        if self.table is None:
-            raise Exception("Table not created yet, please add data first.")
+        if self.table == None: raise Exception("Table not created yet, please add data first.")
 
-        results = (
-            self.table.search(query)
-            .limit(n_results)
-            .select(kwargs.get("select"))
-            .where(kwargs.get("where"))
-            .metric(metric)
-            .nprobes(nprobes)
+        results = self.table \
+            .search(query) \
+            .limit(n_results) \
+            .select(kwargs.get('select')) \
+            .where(kwargs.get('where')) \
+            .metric(metric) \
+            .nprobes(nprobes) \
             .to_df()
-        )
         return results
 
     def persist(self):
@@ -49,11 +45,14 @@ class LanceStore:
 
         documents = []
         for i in range(len(data)):
-            row = {"vector": data[i], "id": ids[i]}
+            row = {
+                'vector': data[i],
+                'id': ids[i]
+            }
             row.update(metadatas[i])
             documents.append(row)
 
-        if self.table is not None:
+        if self.table != None:
             self.table.add(documents)
         else:
             self.table = self.db.create_table(self.name, documents)
@@ -62,10 +61,13 @@ class LanceStore:
         # This function is for adding individual documents
         # It assumes you're passing in a single vector embedding, metadata, and id
 
-        row = {"vector": data, "id": _id}
+        row = {
+            'vector': data,
+            'id': _id
+        }
         row.update(metadata)
 
-        if self.table is not None:
+        if self.table != None:
             self.table.add([row])
         else:
             self.table = self.db.create_table(self.name, [row])
@@ -73,8 +75,7 @@ class LanceStore:
     def delete(self, _id):
         # This function deletes a row by id.
         # LanceDB delete syntax uses SQL syntax, so you can use "in" or "="
-        if self.table is None:
-            raise Exception("Table not created yet, please add data first")
+        if self.table == None: raise Exception("Table not created yet, please add data first")
 
         if isinstance(_id, str):
             return self.table.delete(f"id = '{_id}'")
@@ -84,6 +85,6 @@ class LanceStore:
     def drop(self, name):
         # This function drops a table, if it exists.
 
-        path = os.path.join(self.db.uri, name + ".lance")
+        path = os.path.join(self.db.uri, name + '.lance')
         if os.path.exists(path):
             shutil.rmtree(path)
