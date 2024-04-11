@@ -4,16 +4,17 @@
 @Time    : 2023/5/11 17:46
 @Author  : alexanderwu
 @File    : test_debug_error.py
-@Modifiled By: mashenquan, 2023-12-6. According to RFC 135
 """
-import uuid
-
 import pytest
 
 from metagpt.actions.debug_error import DebugError
-from metagpt.schema import RunCodeContext, RunCodeResult
 
-CODE_CONTENT = '''
+EXAMPLE_MSG_CONTENT = '''
+---
+## Development Code File Name
+player.py
+## Development Code
+```python
 from typing import List
 from deck import Deck
 from card import Card
@@ -57,9 +58,12 @@ class Player:
         if self.score > 21 and any(card.rank == 'A' for card in self.hand):
             self.score -= 10
         return self.score
-'''
 
-TEST_CONTENT = """
+```
+## Test File Name
+test_player.py
+## Test Code
+```python
 import unittest
 from blackjack_game.player import Player
 from blackjack_game.deck import Deck
@@ -110,39 +114,42 @@ class TestPlayer(unittest.TestCase):
 if __name__ == '__main__':
     unittest.main()
 
-"""
+```
+## Running Command
+python tests/test_player.py
+## Running Output
+standard output: ;
+standard errors: ..F..
+======================================================================
+FAIL: test_player_calculate_score_with_multiple_aces (__main__.TestPlayer)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/test_player.py", line 46, in test_player_calculate_score_with_multiple_aces
+    self.assertEqual(player.score, 12)
+AssertionError: 22 != 12
 
+----------------------------------------------------------------------
+Ran 5 tests in 0.007s
+
+FAILED (failures=1)
+;
+## instruction:
+The error is in the development code, specifically in the calculate_score method of the Player class. The method is not correctly handling the case where there are multiple Aces in the player's hand. The current implementation only subtracts 10 from the score once if the score is over 21 and there's an Ace in the hand. However, in the case of multiple Aces, it should subtract 10 for each Ace until the score is 21 or less.
+## File To Rewrite:
+player.py
+## Status:
+FAIL
+## Send To:
+Engineer
+---
+'''
 
 @pytest.mark.asyncio
-async def test_debug_error(context):
-    context.src_workspace = context.git_repo.workdir / uuid.uuid4().hex
-    ctx = RunCodeContext(
-        code_filename="player.py",
-        test_filename="test_player.py",
-        command=["python", "tests/test_player.py"],
-        output_filename="output.log",
-    )
+async def test_debug_error():
 
-    await context.repo.with_src_path(context.src_workspace).srcs.save(filename=ctx.code_filename, content=CODE_CONTENT)
-    await context.repo.tests.save(filename=ctx.test_filename, content=TEST_CONTENT)
-    output_data = RunCodeResult(
-        stdout=";",
-        stderr="",
-        summary="======================================================================\n"
-        "FAIL: test_player_calculate_score_with_multiple_aces (__main__.TestPlayer)\n"
-        "----------------------------------------------------------------------\n"
-        "Traceback (most recent call last):\n"
-        '  File "tests/test_player.py", line 46, in test_player_calculate_score_'
-        "with_multiple_aces\n"
-        "    self.assertEqual(player.score, 12)\nAssertionError: 22 != 12\n\n"
-        "----------------------------------------------------------------------\n"
-        "Ran 5 tests in 0.007s\n\nFAILED (failures=1)\n;\n",
-    )
-    await context.repo.test_outputs.save(filename=ctx.output_filename, content=output_data.model_dump_json())
-    debug_error = DebugError(i_context=ctx, context=context)
+    debug_error = DebugError("debug_error")
 
-    rsp = await debug_error.run()
+    file_name, rewritten_code = await debug_error.run(context=EXAMPLE_MSG_CONTENT)
 
-    assert "class Player" in rsp  # rewrite the same class
-    # a key logic to rewrite to (original one is "if self.score > 12")
-    assert "self.score" in rsp
+    assert "class Player" in rewritten_code # rewrite the same class
+    assert "while self.score > 21" in rewritten_code # a key logic to rewrite to (original one is "if self.score > 12")
